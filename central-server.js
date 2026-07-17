@@ -134,11 +134,9 @@ function defaultTemplateBytes() {
   return minimalRbxlx();
 }
 
-function filePayload(channel) {
-  const meta = loadMeta(channel);
-  if (!meta) throw httpError(404, "channel not found");
+function refreshMetaFromDisk(channel, meta) {
   const paths = channelPaths(channel);
-  if (!fs.existsSync(paths.file)) throw httpError(404, "channel has no file yet");
+  if (!meta || !fs.existsSync(paths.file)) return meta;
   const bytes = fs.readFileSync(paths.file);
   const currentMd5 = md5(bytes);
   if (meta.md5 !== currentMd5 || meta.size !== bytes.length) {
@@ -147,11 +145,47 @@ function filePayload(channel) {
     meta.updatedAt = new Date().toISOString();
     saveMeta(channel, meta);
   }
+  return meta;
+}
+
+function filePayload(channel) {
+  let meta = loadMeta(channel);
+  if (!meta) throw httpError(404, "channel not found");
+  const paths = channelPaths(channel);
+  if (!fs.existsSync(paths.file)) throw httpError(404, "channel has no file yet");
+  meta = refreshMetaFromDisk(channel, meta);
+  const bytes = fs.readFileSync(paths.file);
   return {
     fileName: meta.fileName,
     md5: meta.md5,
     size: meta.size,
+    updatedAt: meta.updatedAt,
     gzipBase64: gzipBase64(bytes),
+  };
+}
+
+function statusPayload(channel) {
+  const safe = safeChannelName(channel);
+  let meta = loadMeta(safe);
+  const paths = channelPaths(safe);
+  const hasFile = fs.existsSync(paths.file);
+  if (!meta) {
+    return { ok: true, channel: safe, exists: false, hasFile: false, file: null };
+  }
+  meta = refreshMetaFromDisk(safe, meta);
+  return {
+    ok: true,
+    channel: safe,
+    exists: true,
+    hasFile,
+    file: hasFile
+      ? {
+          fileName: meta.fileName,
+          md5: meta.md5,
+          size: meta.size,
+          updatedAt: meta.updatedAt,
+        }
+      : null,
   };
 }
 
@@ -213,6 +247,12 @@ async function route(req, res) {
   }
 
   requireAuth(req);
+
+  const statusChannel = parseChannelPath(url.pathname, "/status");
+  if (req.method === "GET" && statusChannel) {
+    sendJson(res, 200, statusPayload(statusChannel));
+    return;
+  }
 
   if (req.method === "POST" && url.pathname === "/v1/handshake") {
     const body = await readJson(req);

@@ -11,8 +11,12 @@
   "scripts": {
     "start:central": "node central-server.js",
     "start:agent": "node local-agent.js serve",
+    "preview:desktop": "node apps/desktop/dev-server.js",
+    "status": "node local-agent.js status",
+    "push": "node local-agent.js push",
+    "pull": "node local-agent.js pull",
     "sync": "node local-agent.js sync",
-    "check:skeleton": "node --check packages/core/src/index.js && node --check packages/core/src/sync-status.js && node --check packages/core/src/schemas.js && node --check apps/desktop/src/main.js && node --check apps/desktop/src/preload.js && node --check apps/desktop/src/renderer.js"
+    "check:skeleton": "node --check packages/core/src/index.js && node --check packages/core/src/sync-status.js && node --check packages/core/src/schemas.js && node --check apps/desktop/src/main.js && node --check apps/desktop/src/preload.js && node --check apps/desktop/src/renderer.js && node --check apps/desktop/dev-server.js"
   },
   "keywords": [
     "roblox",

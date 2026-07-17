@@ -1,96 +1,330 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rohub Desktop</title>
   <style>
     :root {
-      --bg: #111418;
-      --panel: #181d24;
-      --line: #2a323d;
-      --text: #f4f7fb;
-      --muted: #9ca8b8;
-      --accent: #4aa3ff;
-      --safe: #37c978;
-      --warn: #ffbd4a;
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-muted: #f0f3f7;
+      --line: #d8dee8;
+      --line-strong: #b8c2d0;
+      --text: #17202a;
+      --muted: #637083;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #15803d;
+      --warning: #b45309;
+      --danger: #b91c1c;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", sans-serif;
+      min-height: 100vh;
       background: var(--bg);
       color: var(--text);
+      font-family: "Segoe UI", "Pretendard", sans-serif;
     }
-    .shell {
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle,
+    .muted {
+      color: var(--muted);
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 14px;
+    }
+
+    .state-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .state-clean { border-color: #86efac; background: #f0fdf4; color: #166534; }
+    .state-local-ahead { border-color: #facc15; background: #fefce8; color: #854d0e; }
+    .state-remote-ahead { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+    .state-diverged { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+    .state-missing-local,
+    .state-missing-remote,
+    .state-no-base { border-color: #c4b5fd; background: #f5f3ff; color: #5b21b6; }
+
+    .layout {
       display: grid;
-      grid-template-columns: 260px 1fr 300px;
-      min-height: 100vh;
-    }
-    aside, main, section {
-      border-right: 1px solid var(--line);
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 20px;
       padding: 20px;
     }
-    .brand { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
-    .muted { color: var(--muted); }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 16px;
-      margin: 14px 0;
+
+    .stack {
+      display: grid;
+      gap: 16px;
     }
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 12px 14px;
-      margin: 6px 0;
-      color: white;
-      background: #26313d;
-      cursor: pointer;
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0 0 12px;
+      line-height: 1.2;
+    }
+
+    .panel h2 { font-size: 18px; }
+    .panel h3 { font-size: 15px; }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      color: var(--muted);
+      font-size: 12px;
       font-weight: 700;
     }
-    button.primary { background: var(--accent); }
-    button.safe { background: var(--safe); color: #092112; }
-    button.warn { background: var(--warn); color: #261600; }
-    code { color: #9fd0ff; }
+
+    input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #ffffff;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: var(--surface-muted);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--line-strong); }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    button.primary { background: var(--primary); color: #ffffff; }
+    button.primary:hover { background: var(--primary-dark); }
+    button.safe { background: #dcfce7; color: var(--success); border-color: #86efac; }
+    button.warn { background: #fffbeb; color: var(--warning); border-color: #fcd34d; }
+
+    .checkline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .checkline input {
+      width: auto;
+      height: auto;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      min-height: 88px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-muted);
+    }
+
+    .metric span {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 16px;
+    }
+
+    pre {
+      min-height: 150px;
+      max-height: 340px;
+      margin: 0;
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--surface-muted);
+      color: var(--primary-dark);
+    }
+
+    .help-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    @media (max-width: 960px) {
+      .app-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .actions,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <aside>
+  <header class="app-header">
+    <div>
       <div class="brand">Rohub</div>
-      <div class="muted">Roblox sync desktop shell</div>
-      <div class="card">
-        <strong>프로젝트</strong>
-        <p class="muted">아직 등록된 프로젝트가 없습니다.</p>
-        <button>프로젝트 추가</button>
-      </div>
+      <div class="subtitle">Simple Roblox project sync for local files and team channels.</div>
+    </div>
+    <span id="statePill" class="state-pill">no-project</span>
+  </header>
+
+  <div class="layout">
+    <aside class="stack">
+      <section class="panel">
+        <h2>Project setup</h2>
+        <label for="localAgentUrl">Local agent URL</label>
+        <input id="localAgentUrl" value="http://127.0.0.1:8787" />
+
+        <label for="centralUrl">Central server URL</label>
+        <input id="centralUrl" value="http://127.0.0.1:7070" />
+
+        <label for="channel">Channel</label>
+        <input id="channel" value="main" />
+
+        <label for="filePath">Local .rbxl/.rbxlx path</label>
+        <input id="filePath" placeholder="C:\\path\\main.rbxlx" />
+      </section>
+
+      <section class="panel">
+        <h2>Access tokens</h2>
+        <label for="localAgentToken">Local agent token</label>
+        <input id="localAgentToken" type="password" placeholder="optional" />
+
+        <label for="centralToken">Central token</label>
+        <input id="centralToken" type="password" placeholder="optional" />
+
+        <button id="saveConfig">Save config</button>
+      </section>
+
+      <section class="panel">
+        <h2>How to start</h2>
+        <ul class="help-list">
+          <li>Run <code>npm run start:central</code></li>
+          <li>Run <code>npm run start:agent</code></li>
+          <li>Press <strong>Status</strong> before Push or Pull.</li>
+        </ul>
+      </section>
     </aside>
-    <main>
-      <h1>동기화 상태</h1>
-      <p class="muted">local-agent와 central-server를 연결하면 이곳에 상태가 표시됩니다.</p>
-      <div class="card">
-        <strong>현재 상태</strong>
-        <p><code id="sync-state">no-project</code></p>
-      </div>
-      <div class="card">
-        <strong>작업 로그</strong>
-        <p class="muted" id="activity-log">대기 중입니다.</p>
-      </div>
+
+    <main class="stack">
+      <section class="panel">
+        <h2>Current state</h2>
+        <div class="status-grid">
+          <div class="metric"><span>Recommended action</span><strong id="recommendedAction">-</strong></div>
+          <div class="metric"><span>Local hash</span><strong id="localHash">-</strong></div>
+          <div class="metric"><span>Remote hash</span><strong id="remoteHash">-</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Actions</h2>
+        <div class="actions">
+          <button class="primary" data-action="status">Status</button>
+          <button class="safe" data-action="push">Push local</button>
+          <button data-action="pull">Pull remote</button>
+          <button class="warn" data-action="sync">Safe sync</button>
+        </div>
+        <label class="checkline"><input id="force" type="checkbox" /> Allow force mode for Push/Pull</label>
+        <p class="muted">Force mode is disabled by default because it can overwrite team changes.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Activity log</h2>
+        <pre id="activityLog">Ready. Start central-server and local-agent, then press Status.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Raw response</h2>
+        <pre id="rawResponse">{}</pre>
+      </section>
     </main>
-    <section>
-      <h2>작업</h2>
-      <button class="safe" data-action="push">Push</button>
-      <button class="primary" data-action="pull">Pull</button>
-      <button class="warn" data-action="sync">Sync</button>
-      <div class="card">
-        <strong>주의</strong>
-        <p class="muted">실제 파일 변경 전에는 항상 백업과 충돌 확인을 거치도록 구현합니다.</p>
-      </div>
-    </section>
   </div>
+
   <script src="src/renderer.js"></script>
 </body>
 </html>

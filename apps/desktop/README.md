@@ -1,14 +1,29 @@
 # Rohub Desktop App Skeleton
 
-이 폴더는 GitHub Desktop처럼 Roblox 프로젝트 변경사항을 확인하고 Push/Pull/Sync할 Electron 앱의 뼈대입니다.
+This folder contains the browser/Electron preview shell for Rohub.
 
-현재 단계에서는 실제 Electron 의존성을 설치하지 않았고, 화면/프로세스/브리지 구조만 잡아둔 상태입니다.
+The current UI is intentionally flat and simple. It avoids gradients and decorative effects so users can focus on project setup, status, and sync actions.
 
-## 예정 화면
+## Run preview
 
-- 프로젝트 목록
-- 현재 프로젝트 상태
-- Push / Pull / Sync 버튼
-- 작업 로그
-- 백업 기록
-- 충돌 해결 화면
+```powershell
+npm run preview:desktop
+```
+
+Open the printed local URL, then fill:
+
+- Local agent URL: `http://127.0.0.1:8787`
+- Central server URL: `http://127.0.0.1:7070`
+- Channel: `main`
+- Local `.rbxl/.rbxlx` path
+
+The UI can call:
+
+- `POST /status`
+- `POST /push`
+- `POST /pull`
+- `POST /sync`
+
+## Notes
+
+The active Electron dependency is not installed yet. This preview intentionally works in a normal browser first, then can be wrapped by Electron later.

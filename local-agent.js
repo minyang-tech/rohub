@@ -9,6 +9,8 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const { URL } = require("url");
 
+const { calculateSyncState, SYNC_STATES } = require("./packages/core/src/sync-status");
+
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 8787);
 const LOCAL_AGENT_TOKEN = process.env.LOCAL_AGENT_TOKEN || "";
@@ -58,6 +60,43 @@ function timestampForFile() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+function stateFilePath(filePath) {
+  return `${filePath}.rohub-state.json`;
+}
+
+function readLocalState(filePath) {
+  const statePath = stateFilePath(filePath);
+  if (!fileExists(statePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(statePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalState(filePath, state) {
+  const statePath = stateFilePath(filePath);
+  ensureParentDir(statePath);
+  fs.writeFileSync(statePath, `${JSON.stringify({ ...state, updatedAt: new Date().toISOString() }, null, 2)}\n`);
+  return statePath;
+}
+
+function getLocalFileInfo(filePath) {
+  if (!fileExists(filePath)) {
+    return { exists: false, filePath, fileName: path.basename(filePath), md5: null, size: 0, updatedAt: null };
+  }
+  const bytes = fs.readFileSync(filePath);
+  const stats = fs.statSync(filePath);
+  return {
+    exists: true,
+    filePath,
+    fileName: path.basename(filePath),
+    md5: md5(bytes),
+    size: bytes.length,
+    updatedAt: stats.mtime.toISOString(),
+  };
+}
+
 function writeServerFile(filePath, serverFile, makeBackup) {
   const bytes = gunzipBase64(serverFile.gzipBase64);
   let backupPath = null;
@@ -74,6 +113,22 @@ function writeServerFile(filePath, serverFile, makeBackup) {
     size: bytes.length,
     serverFileName: serverFile.fileName,
   };
+}
+
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  const localhostOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+  if (origin !== "null" && !localhostOrigin) return;
+  res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("vary", "origin");
+  res.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type, authorization");
+}
+
+function sendEmpty(res, status) {
+  res.writeHead(status, { "cache-control": "no-store" });
+  res.end();
 }
 
 function sendJson(res, status, payload) {
@@ -115,9 +170,7 @@ function requestJson(method, targetUrl, body, token) {
   const url = new URL(targetUrl);
   const transport = url.protocol === "https:" ? https : http;
   const encodedBody = body ? Buffer.from(JSON.stringify(body), "utf8") : null;
-  const headers = {
-    accept: "application/json",
-  };
+  const headers = { accept: "application/json" };
   if (encodedBody) {
     headers["content-type"] = "application/json; charset=utf-8";
     headers["content-length"] = encodedBody.length;
@@ -165,113 +218,215 @@ function joinCentral(centralUrl, route) {
   return base.toString();
 }
 
-async function syncOnce(options) {
+function normalizeOptions(options) {
   const centralUrl = options.centralUrl || "http://127.0.0.1:7070";
   const centralToken = options.centralToken || "";
   const channel = safeChannelName(options.channel || "main");
   const filePath = normalizeFilePath(options.filePath || path.join(process.cwd(), `${channel}.rbxlx`));
-  const fileName = path.basename(filePath);
+  return { centralUrl, centralToken, channel, filePath, fileName: path.basename(filePath) };
+}
 
-  const handshake = await requestJson("POST", joinCentral(centralUrl, "/v1/handshake"), { channel }, centralToken);
-  const localExists = fileExists(filePath);
-
-  if (!handshake.exists) {
-    if (localExists) {
-      const bytes = fs.readFileSync(filePath);
-      const upload = await requestJson(
-        "POST",
-        joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/file`),
-        { fileName, gzipBase64: gzipBase64(bytes) },
-        centralToken
-      );
-      return {
-        ok: true,
-        action: "created-channel-uploaded-local-file",
-        channel,
-        channelExisted: false,
-        filePath,
-        localMd5: md5(bytes),
-        serverMd5: upload.meta.md5,
-        size: bytes.length,
-      };
-    }
-
-    const created = await requestJson(
-      "POST",
-      joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/default`),
-      { fileName },
-      centralToken
-    );
-    const written = writeServerFile(filePath, created.file, false);
-    return {
-      ok: true,
-      action: "created-channel-downloaded-default-file",
-      channel,
-      channelExisted: false,
-      ...written,
-    };
+function recommendedAction(state) {
+  switch (state) {
+    case SYNC_STATES.CLEAN:
+      return "none";
+    case SYNC_STATES.LOCAL_AHEAD:
+    case SYNC_STATES.MISSING_REMOTE:
+      return "push";
+    case SYNC_STATES.REMOTE_AHEAD:
+    case SYNC_STATES.MISSING_LOCAL:
+      return "pull";
+    case SYNC_STATES.NO_BASE:
+      return "initialize";
+    default:
+      return "resolve-conflict";
   }
+}
 
-  if (!localExists) {
-    let downloaded;
-    try {
-      downloaded = await requestJson(
-        "GET",
-        joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/file`),
-        null,
-        centralToken
-      );
-    } catch (err) {
-      if (err.status !== 404) throw err;
-      downloaded = await requestJson(
-        "POST",
-        joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/default`),
-        { fileName },
-        centralToken
-      );
-    }
-    const written = writeServerFile(filePath, downloaded.file, false);
-    return {
-      ok: true,
-      action: "downloaded-server-file",
-      channel,
-      channelExisted: true,
-      ...written,
-    };
-  }
-
-  const localBytes = fs.readFileSync(filePath);
-  const localMd5 = md5(localBytes);
-  const compared = await requestJson(
-    "POST",
-    joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/compare`),
-    { md5: localMd5 },
+async function remoteStatus(options) {
+  const { centralUrl, centralToken, channel } = options;
+  return requestJson(
+    "GET",
+    joinCentral(centralUrl, `/v1/channels/${encodeURIComponent(channel)}/status`),
+    null,
     centralToken
   );
+}
 
-  if (compared.same) {
-    return {
-      ok: true,
-      action: "already-in-sync",
-      channel,
-      channelExisted: true,
-      filePath,
-      localMd5,
-      serverMd5: compared.md5,
-      size: localBytes.length,
-    };
-  }
+async function statusOnce(options) {
+  const normalized = normalizeOptions(options || {});
+  const local = getLocalFileInfo(normalized.filePath);
+  const remoteRaw = await remoteStatus(normalized);
+  const remoteFile = remoteRaw.exists && remoteRaw.hasFile ? remoteRaw.file : null;
+  const state = readLocalState(normalized.filePath);
+  const baseHash = state && state.channel === normalized.channel ? state.baseHash || "" : "";
+  const syncState = calculateSyncState({
+    localHash: local.exists ? local.md5 : "",
+    remoteHash: remoteFile ? remoteFile.md5 : "",
+    baseHash,
+  });
 
-  const written = writeServerFile(filePath, compared.file, true);
   return {
     ok: true,
-    action: "replaced-local-with-server-file",
-    channel,
-    channelExisted: true,
-    localMd5Before: localMd5,
-    serverMd5: compared.file.md5,
+    action: "status",
+    channel: normalized.channel,
+    centralUrl: normalized.centralUrl,
+    filePath: normalized.filePath,
+    state: syncState,
+    recommendedAction: recommendedAction(syncState),
+    baseHash,
+    stateFilePath: stateFilePath(normalized.filePath),
+    local,
+    remote: {
+      exists: Boolean(remoteRaw.exists),
+      hasFile: Boolean(remoteRaw.hasFile),
+      file: remoteFile,
+    },
+  };
+}
+
+function ensurePushAllowed(status, force) {
+  if (!status.local.exists) throw httpError(404, "local file does not exist; nothing to push");
+  if (!force && (status.state === SYNC_STATES.REMOTE_AHEAD || status.state === SYNC_STATES.DIVERGED)) {
+    throw httpError(409, `push blocked because sync state is ${status.state}; pull or resolve conflict first`);
+  }
+}
+
+function ensurePullAllowed(status, force) {
+  if (!status.remote.exists || !status.remote.hasFile) throw httpError(404, "remote channel has no file; nothing to pull");
+  if (!force && (status.state === SYNC_STATES.LOCAL_AHEAD || status.state === SYNC_STATES.DIVERGED)) {
+    throw httpError(409, `pull blocked because sync state is ${status.state}; push or resolve conflict first`);
+  }
+}
+
+async function pushOnce(options) {
+  const normalized = normalizeOptions(options || {});
+  const force = Boolean(options && options.force);
+  const status = await statusOnce(normalized);
+  ensurePushAllowed(status, force);
+
+  if (status.state === SYNC_STATES.CLEAN && !force) {
+    return { ...status, action: "already-in-sync" };
+  }
+
+  const bytes = fs.readFileSync(normalized.filePath);
+  const upload = await requestJson(
+    "POST",
+    joinCentral(normalized.centralUrl, `/v1/channels/${encodeURIComponent(normalized.channel)}/file`),
+    { fileName: normalized.fileName, gzipBase64: gzipBase64(bytes) },
+    normalized.centralToken
+  );
+  const baseHash = upload.meta.md5;
+  const statePath = writeLocalState(normalized.filePath, {
+    schemaVersion: 1,
+    channel: normalized.channel,
+    centralUrl: normalized.centralUrl,
+    filePath: normalized.filePath,
+    baseHash,
+    lastAction: "push",
+    lastSyncAt: new Date().toISOString(),
+  });
+
+  return {
+    ok: true,
+    action: status.remote.exists ? "pushed-local-file" : "created-remote-channel-pushed-local-file",
+    channel: normalized.channel,
+    filePath: normalized.filePath,
+    stateBefore: status.state,
+    stateAfter: SYNC_STATES.CLEAN,
+    localMd5: md5(bytes),
+    serverMd5: baseHash,
+    size: bytes.length,
+    stateFilePath: statePath,
+  };
+}
+
+async function pullOnce(options) {
+  const normalized = normalizeOptions(options || {});
+  const force = Boolean(options && options.force);
+  const status = await statusOnce(normalized);
+  ensurePullAllowed(status, force);
+
+  if (status.state === SYNC_STATES.CLEAN && !force) {
+    return { ...status, action: "already-in-sync" };
+  }
+
+  const downloaded = await requestJson(
+    "GET",
+    joinCentral(normalized.centralUrl, `/v1/channels/${encodeURIComponent(normalized.channel)}/file`),
+    null,
+    normalized.centralToken
+  );
+  const written = writeServerFile(normalized.filePath, downloaded.file, status.local.exists);
+  const statePath = writeLocalState(normalized.filePath, {
+    schemaVersion: 1,
+    channel: normalized.channel,
+    centralUrl: normalized.centralUrl,
+    filePath: normalized.filePath,
+    baseHash: downloaded.file.md5,
+    lastAction: "pull",
+    lastSyncAt: new Date().toISOString(),
+  });
+
+  return {
+    ok: true,
+    action: status.local.exists ? "pulled-remote-file" : "downloaded-remote-file",
+    channel: normalized.channel,
+    stateBefore: status.state,
+    stateAfter: SYNC_STATES.CLEAN,
+    serverMd5: downloaded.file.md5,
+    stateFilePath: statePath,
     ...written,
   };
+}
+
+async function createDefaultAndPull(options) {
+  const normalized = normalizeOptions(options || {});
+  const created = await requestJson(
+    "POST",
+    joinCentral(normalized.centralUrl, `/v1/channels/${encodeURIComponent(normalized.channel)}/default`),
+    { fileName: normalized.fileName },
+    normalized.centralToken
+  );
+  const written = writeServerFile(normalized.filePath, created.file, false);
+  const statePath = writeLocalState(normalized.filePath, {
+    schemaVersion: 1,
+    channel: normalized.channel,
+    centralUrl: normalized.centralUrl,
+    filePath: normalized.filePath,
+    baseHash: created.file.md5,
+    lastAction: "create-default",
+    lastSyncAt: new Date().toISOString(),
+  });
+  return {
+    ok: true,
+    action: "created-channel-downloaded-default-file",
+    channel: normalized.channel,
+    stateAfter: SYNC_STATES.CLEAN,
+    serverMd5: created.file.md5,
+    stateFilePath: statePath,
+    ...written,
+  };
+}
+
+async function syncOnce(options) {
+  const status = await statusOnce(options || {});
+  switch (status.state) {
+    case SYNC_STATES.CLEAN:
+      return { ...status, action: "already-in-sync" };
+    case SYNC_STATES.LOCAL_AHEAD:
+    case SYNC_STATES.MISSING_REMOTE:
+      return pushOnce(options || {});
+    case SYNC_STATES.REMOTE_AHEAD:
+    case SYNC_STATES.MISSING_LOCAL:
+      return pullOnce(options || {});
+    case SYNC_STATES.NO_BASE:
+      if (status.local.exists && !status.remote.hasFile) return pushOnce(options || {});
+      if (!status.local.exists && !status.remote.hasFile) return createDefaultAndPull(options || {});
+      throw httpError(409, "sync blocked because both local and remote exist without a known base; choose push --force or pull --force explicitly");
+    default:
+      throw httpError(409, `sync blocked because sync state is ${status.state}; resolve conflict first`);
+  }
 }
 
 function requireAuth(req) {
@@ -283,7 +438,13 @@ function requireAuth(req) {
 }
 
 async function route(req, res) {
+  applyCors(req, res);
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  if (req.method === "OPTIONS") {
+    sendEmpty(res, 204);
+    return;
+  }
 
   if (req.method === "GET" && url.pathname === "/health") {
     sendJson(res, 200, { ok: true, service: "rbxl-channel-local-agent" });
@@ -291,6 +452,24 @@ async function route(req, res) {
   }
 
   requireAuth(req);
+
+  if (req.method === "POST" && url.pathname === "/status") {
+    const body = await readJson(req);
+    sendJson(res, 200, await statusOnce(body));
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/push") {
+    const body = await readJson(req);
+    sendJson(res, 200, await pushOnce(body));
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/pull") {
+    const body = await readJson(req);
+    sendJson(res, 200, await pullOnce(body));
+    return;
+  }
 
   if (req.method === "POST" && url.pathname === "/sync") {
     const body = await readJson(req);
@@ -331,16 +510,23 @@ function parseArgs(argv) {
   return args;
 }
 
+function optionsFromArgs(args) {
+  return {
+    centralUrl: args.central || args.centralUrl,
+    centralToken: args.centralToken || process.env.CENTRAL_TOKEN || "",
+    channel: args.channel,
+    filePath: args.file || args.filePath,
+    force: Boolean(args.force),
+  };
+}
+
 async function main() {
   const command = process.argv[2] || "serve";
-  if (command === "sync") {
+  if (["status", "push", "pull", "sync"].includes(command)) {
     const args = parseArgs(process.argv.slice(3));
-    const result = await syncOnce({
-      centralUrl: args.central || args.centralUrl,
-      centralToken: args.centralToken || process.env.CENTRAL_TOKEN || "",
-      channel: args.channel,
-      filePath: args.file || args.filePath,
-    });
+    const options = optionsFromArgs(args);
+    const handlers = { status: statusOnce, push: pushOnce, pull: pullOnce, sync: syncOnce };
+    const result = await handlers[command](options);
     console.log(JSON.stringify(result, null, 2));
     return;
   }
@@ -350,6 +536,9 @@ async function main() {
   }
   console.error("Usage:");
   console.error("  node local-agent.js serve");
+  console.error("  node local-agent.js status --central http://127.0.0.1:7070 --channel main --file ./main.rbxlx");
+  console.error("  node local-agent.js push --central http://127.0.0.1:7070 --channel main --file ./main.rbxlx [--force]");
+  console.error("  node local-agent.js pull --central http://127.0.0.1:7070 --channel main --file ./main.rbxlx [--force]");
   console.error("  node local-agent.js sync --central http://127.0.0.1:7070 --channel main --file ./main.rbxlx");
   process.exitCode = 2;
 }
