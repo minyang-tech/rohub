@@ -3,6 +3,8 @@
   "version": "0.1.0-skeleton",
   "private": true,
   "description": "GitHub Desktop style Roblox project sync tool skeleton.",
+  "main": "apps/desktop/src/main.js",
+  "author": "MinyangTech",
   "type": "commonjs",
   "workspaces": [
     "apps/*",
@@ -12,6 +14,9 @@
     "start:central": "node central-server.js",
     "start:agent": "node local-agent.js serve",
     "preview:desktop": "node apps/desktop/dev-server.js",
+    "desktop": "electron .",
+    "pack:win": "electron-builder --win portable --x64 --dir",
+    "dist:win": "electron-builder --win portable --x64",
     "status": "node local-agent.js status",
     "push": "node local-agent.js push",
     "pull": "node local-agent.js pull",
@@ -24,5 +29,41 @@
     "sync",
     "desktop"
   ],
-  "license": "SEE LICENSE IN License.md"
+  "license": "SEE LICENSE IN License.md",
+  "build": {
+    "appId": "kr.ne.minyangtech.rohub",
+    "productName": "Rohub",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "apps/desktop/**/*",
+      "packages/**/*",
+      "central-server.js",
+      "local-agent.js",
+      "README.md",
+      "License.md",
+      "Rohub-Logo.png",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "Rohub-${version}-Windows.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
+  }
 }

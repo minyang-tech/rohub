@@ -131,6 +131,12 @@
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
     }
 
+    .input-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 92px;
+      gap: 8px;
+    }
+
     .actions {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -227,6 +233,12 @@
       line-height: 1.7;
     }
 
+    .app-mode {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     @media (max-width: 960px) {
       .app-header {
         align-items: flex-start;
@@ -238,7 +250,8 @@
       }
 
       .actions,
-      .status-grid {
+      .status-grid,
+      .input-row {
         grid-template-columns: 1fr;
       }
     }
@@ -249,6 +262,7 @@
     <div>
       <div class="brand">Rohub</div>
       <div class="subtitle">Simple Roblox project sync for local files and team channels.</div>
+      <div id="appMode" class="app-mode">Browser preview mode</div>
     </div>
     <span id="statePill" class="state-pill">no-project</span>
   </header>
@@ -267,7 +281,10 @@
         <input id="channel" value="main" />
 
         <label for="filePath">Local .rbxl/.rbxlx path</label>
-        <input id="filePath" placeholder="C:\\path\\main.rbxlx" />
+        <div class="input-row">
+          <input id="filePath" placeholder="C:\\path\\main.rbxlx" />
+          <button id="browseFile" type="button">Browse</button>
+        </div>
       </section>
 
       <section class="panel">
@@ -286,6 +303,7 @@
         <ul class="help-list">
           <li>Run <code>npm run start:central</code></li>
           <li>Run <code>npm run start:agent</code></li>
+          <li>Run <code>npm run desktop</code> when Electron is installed.</li>
           <li>Press <strong>Status</strong> before Push or Pull.</li>
         </ul>
       </section>

@@ -6,6 +6,7 @@
   "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "electron ."
+    "dev": "electron .",
+    "start": "electron ."
   }
 }

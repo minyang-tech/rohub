@@ -10,3 +10,4 @@ central-data/
 *.tmp
 .DS_Store
 Thumbs.db
+release/

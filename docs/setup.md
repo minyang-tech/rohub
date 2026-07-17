@@ -23,6 +23,20 @@ node .\local-agent.js serve
 npm run preview:desktop
 ```
 
+Electron 앱:
+
+```powershell
+npm run desktop
+```
+
+Windows `.exe` 배포본:
+
+```powershell
+npm run dist:win
+```
+
+빌드가 완료되면 `release/Rohub-<version>-Windows.exe` 파일이 생성됩니다.
+
 Roblox Studio 플러그인은 저장소 루트의 `roblox-plugin.luau`를 Local Plugin으로 등록해서 사용합니다.
 
 ## CLI 사용
@@ -77,6 +91,14 @@ central-server:
 4. 프로젝트 파일 경로와 채널 입력
 5. `Status`로 상태 확인
 6. 필요에 따라 `Push local`, `Pull remote`, `Safe sync` 실행
+
+## 현재 Electron 앱 흐름
+
+1. `npm run desktop` 또는 빌드된 `.exe` 실행
+2. 앱이 내부에서 `local-agent`와 기본 `central-server`를 자동 시작
+3. `File > Select Roblox File` 또는 `Browse` 버튼으로 프로젝트 파일 선택
+4. `Sync > Status` 또는 화면의 `Status` 버튼으로 상태 확인
+5. `Sync > Push Local`, `Sync > Pull Remote`, `Sync > Safe Sync` 또는 화면 버튼으로 동기화 실행
 
 ## 현재 Roblox Studio 플러그인 흐름
 

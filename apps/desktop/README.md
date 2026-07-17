@@ -24,6 +24,29 @@ The UI can call:
 - `POST /pull`
 - `POST /sync`
 
+## Run Electron app
+
+```powershell
+npm run desktop
+```
+
+The Electron shell adds:
+
+- Native File menu
+- Native Sync menu
+- `.rbxl/.rbxlx` file picker
+- Secure preload bridge for renderer actions
+- Managed local-agent process
+- Managed default central-server process
+
+## Build Windows exe
+
+```powershell
+npm run dist:win
+```
+
+The portable executable is written to `release/Rohub-<version>-Windows.exe`.
+
 ## Notes
 
-The active Electron dependency is not installed yet. This preview intentionally works in a normal browser first, then can be wrapped by Electron later.
+The browser preview still works without Electron. The Windows executable requires the Electron packaging dependencies.

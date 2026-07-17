@@ -114,11 +114,69 @@ async function runAction(action) {
   }
 }
 
+async function chooseProjectFile() {
+  if (!window.rohub?.selectProjectFile) {
+    appendLog("Project file picker is available in the Electron app.");
+    return;
+  }
+
+  const result = await window.rohub.selectProjectFile();
+  if (!result || result.canceled || !result.filePath) {
+    appendLog("Project file selection canceled.");
+    return;
+  }
+
+  element("filePath").value = result.filePath;
+  saveConfig();
+  appendLog(`Selected project file: ${result.filePath}`);
+}
+
+function handleMenuAction(action) {
+  if (action === "select-file") {
+    chooseProjectFile();
+    return;
+  }
+
+  if (action === "save-config") {
+    saveConfig();
+    return;
+  }
+
+  if (["status", "push", "pull", "sync"].includes(action)) {
+    runAction(action);
+  }
+}
+
+function handleServiceLog(message) {
+  appendLog(String(message || ""));
+}
+
+async function renderAppMode() {
+  const appMode = element("appMode");
+  if (!appMode) return;
+
+  if (!window.rohub?.getAppInfo) {
+    appMode.textContent = "Browser preview mode";
+    return;
+  }
+
+  try {
+    const info = await window.rohub.getAppInfo();
+    appMode.textContent = `Electron app mode · ${info.platform} · ${info.version}`;
+  } catch {
+    appMode.textContent = "Electron app mode";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   loadConfig();
   element("saveConfig").addEventListener("click", saveConfig);
+  element("browseFile").addEventListener("click", chooseProjectFile);
   for (const button of document.querySelectorAll("[data-action]")) {
     button.addEventListener("click", () => runAction(button.dataset.action));
   }
+  if (window.rohub?.onMenuAction) window.rohub.onMenuAction(handleMenuAction);
+  if (window.rohub?.onServiceLog) window.rohub.onServiceLog(handleServiceLog);
+  renderAppMode();
   appendLog(window.rohub ? `Electron bridge ready: ${window.rohub.version}` : "Browser preview mode ready.");
 });
