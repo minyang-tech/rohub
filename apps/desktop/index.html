@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rohub Desktop</title>
+  <style>
+    :root {
+      --bg: #111418;
+      --panel: #181d24;
+      --line: #2a323d;
+      --text: #f4f7fb;
+      --muted: #9ca8b8;
+      --accent: #4aa3ff;
+      --safe: #37c978;
+      --warn: #ffbd4a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 260px 1fr 300px;
+      min-height: 100vh;
+    }
+    aside, main, section {
+      border-right: 1px solid var(--line);
+      padding: 20px;
+    }
+    .brand { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .muted { color: var(--muted); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 14px 0;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 6px 0;
+      color: white;
+      background: #26313d;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button.primary { background: var(--accent); }
+    button.safe { background: var(--safe); color: #092112; }
+    button.warn { background: var(--warn); color: #261600; }
+    code { color: #9fd0ff; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">Rohub</div>
+      <div class="muted">Roblox sync desktop shell</div>
+      <div class="card">
+        <strong>프로젝트</strong>
+        <p class="muted">아직 등록된 프로젝트가 없습니다.</p>
+        <button>프로젝트 추가</button>
+      </div>
+    </aside>
+    <main>
+      <h1>동기화 상태</h1>
+      <p class="muted">local-agent와 central-server를 연결하면 이곳에 상태가 표시됩니다.</p>
+      <div class="card">
+        <strong>현재 상태</strong>
+        <p><code id="sync-state">no-project</code></p>
+      </div>
+      <div class="card">
+        <strong>작업 로그</strong>
+        <p class="muted" id="activity-log">대기 중입니다.</p>
+      </div>
+    </main>
+    <section>
+      <h2>작업</h2>
+      <button class="safe" data-action="push">Push</button>
+      <button class="primary" data-action="pull">Pull</button>
+      <button class="warn" data-action="sync">Sync</button>
+      <div class="card">
+        <strong>주의</strong>
+        <p class="muted">실제 파일 변경 전에는 항상 백업과 충돌 확인을 거치도록 구현합니다.</p>
+      </div>
+    </section>
+  </div>
+  <script src="src/renderer.js"></script>
+</body>
+</html>

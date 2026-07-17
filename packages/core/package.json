@@ -1,0 +1,8 @@
+{
+  "name": "@rohub/core",
+  "version": "0.1.0-skeleton",
+  "private": true,
+  "description": "Shared Rohub sync status and schema helpers.",
+  "main": "src/index.js",
+  "type": "commonjs"
+}

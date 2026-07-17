@@ -1,0 +1,8 @@
+{
+  "name": "@rohub/central-server",
+  "version": "0.1.0-skeleton",
+  "private": true,
+  "description": "Future modular central server package for Rohub.",
+  "main": "src/index.js",
+  "type": "commonjs"
+}

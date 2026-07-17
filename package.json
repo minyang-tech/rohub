@@ -1,0 +1,24 @@
+{
+  "name": "rohub",
+  "version": "0.1.0-skeleton",
+  "private": true,
+  "description": "GitHub Desktop style Roblox project sync tool skeleton.",
+  "type": "commonjs",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start:central": "node central-server.js",
+    "start:agent": "node local-agent.js serve",
+    "sync": "node local-agent.js sync",
+    "check:skeleton": "node --check packages/core/src/index.js && node --check packages/core/src/sync-status.js && node --check packages/core/src/schemas.js && node --check apps/desktop/src/main.js && node --check apps/desktop/src/preload.js && node --check apps/desktop/src/renderer.js"
+  },
+  "keywords": [
+    "roblox",
+    "rojo",
+    "sync",
+    "desktop"
+  ],
+  "license": "SEE LICENSE IN License.md"
+}

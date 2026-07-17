@@ -1,0 +1,11 @@
+{
+  "name": "@rohub/desktop",
+  "version": "0.1.0-skeleton",
+  "private": true,
+  "description": "Rohub desktop shell skeleton.",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron ."
+  }
+}
